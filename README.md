@@ -5,3 +5,29 @@ vasp2spn.py is a modified version of vaspspn.py provided in [wannierberri](https
 A test script is also provided: orthotest.py calculates overlap between selected wavefunctions and print the results that should demonstrate the orthonormality between Kohn-Shan orbitals. It is a useful test to check whether the augmentation parts of all-electron wavefunctions are correctly recovered.
 
 
+## Usage
+Run the following command in the working directory:
+```
+        python3 -m vasp2spn.py   option=value
+```
+    Options
+        -h
+            |  print this help message
+        fwav
+            |  WAVECAR file name.
+            |  default: WAVECAR
+        fpot
+            |  POTCAR file name.
+            |  default: POTCAR
+        fpos
+            |  POSCAR file name.
+            |  default: POSCAR
+        fout
+            |  outputfile name
+            |  default: wannier90.spn
+        IBstart
+            |  the first band to be considered (counting starts from 1).
+            |  default: 1
+        NB
+            |  number of bands in the output. If NB<=0 all bands are used.
+            |  default: 0
