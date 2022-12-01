@@ -1,29 +1,3 @@
-
-""" An utility to calculate the ``.spn`` file for wannier90 from VASP input file ``POSCAR``,``POTCAR`` and output file``WAVECAR`` <https://www.vasp.at/>`_. Augmentation part of PAW wavefunction is considered during evaluation of spin operator.
-    usage : ::
-        python3 -m vasp2spn.py   option=value
-    Options
-        -h
-            |  print this help message
-        fwav
-            |  WAVECAR file name.
-            |  default: WAVECAR
-        fpot
-            |  POTCAR file name.
-            |  default: POTCAR
-        fpos
-            |  POSCAR file name.
-            |  default: POSCAR
-        fout
-            |  outputfile name
-            |  default: wannier90.spn
-        IBstart
-            |  the first band to be considered (counting starts from 1).
-            |  default: 1
-        NB
-            |  number of bands in the output. If NB<=0 all bands are used.
-            |  default: 0
-"""
 import numpy as np
 from numpy.linalg import inv,norm
 import sys
@@ -442,16 +416,17 @@ sy = np.array([[0,-1j],[1j,0]])
 sz = np.array([[1,0],[0,-1]])
 
 ik=0
+ispin=0
 npw = wav.Gindx[ik].shape[0]
 Id = np.eye(npw)
-proj=calcproj(wav,paw,ik,0,bands)
-overlap=wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(np.eye(2),Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
+proj=calcproj(wav,paw,ik,ispin,bands)
+overlap=wav.wavelist[ik,ispin,bands,0:2*npw].conj()*np.diag(np.kron(np.eye(2),Id))[np.newaxis,:]@wav.wavelist[ik,ispin,bands,0:2*npw].T\
              +proj.conj()@np.kron(np.eye(2),paw.Tij)@proj.T
-SX = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sx,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
+SX = wav.wavelist[ik,ispin,bands,0:2*npw].conj()*np.diag(np.kron(sx,Id))[np.newaxis,:]@wav.wavelist[ik,ispin,bands,0:2*npw].T\
              +proj.conj()@np.kron(sx,paw.Tij)@proj.T
-SY = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sy,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
+SY = wav.wavelist[ik,ispin,bands,0:2*npw].conj()*np.diag(np.kron(sy,Id))[np.newaxis,:]@wav.wavelist[ik,ispin,bands,0:2*npw].T\
              +proj.conj()@np.kron(sy,paw.Tij)@proj.T
-SZ = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sz,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
+SZ = wav.wavelist[ik,ispin,bands,0:2*npw].conj()*np.diag(np.kron(sz,Id))[np.newaxis,:]@wav.wavelist[ik,ispin,bands,0:2*npw].T\
              +proj.conj()@np.kron(sz,paw.Tij)@proj.T
 print("overlap Real Part")
 print(overlap.real)
@@ -461,11 +436,3 @@ print("SZ Real Part")
 print(SZ.real)
 print("SZ Imag Part")
 print(SZ.imag)
-
-print("A")
-print(paw.A)
-print("Gmax")
-for iat in paw.elements:
-    print(pot.pps[iat].Gmax)
-print("ls")
-print(paw.ls)
