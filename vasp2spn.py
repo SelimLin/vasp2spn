@@ -517,9 +517,9 @@ def main():
                     for j in (0, 1)
                 ] for i in (0, 1)
             ])
-        SX = SIGMA[0, 1] + SIGMA[1, 0]
-        SY = -1.j * (SIGMA[0, 1] - SIGMA[1, 0])
-        SZ = SIGMA[0, 0] - SIGMA[1, 1]
+        SX = SIGMA[0, 1] + SIGMA[1, 0]+proj.conj()@np.kron(sx,paw.Tij)@proj.T
+        SY = -1.j * (SIGMA[0, 1] - SIGMA[1, 0])+proj.conj()@np.kron(sy,paw.Tij)@proj.T
+        SZ = SIGMA[0, 0] - SIGMA[1, 1]+proj.conj()@np.kron(sz,paw.Tij)@proj.T
         A = np.array([s[n, m] for m in range(NBout) for n in range(m + 1) for s in (SX, SY, SZ)], dtype=np.complex128)
         SPN.write_record(A)
 
