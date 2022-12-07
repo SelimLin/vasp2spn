@@ -37,145 +37,145 @@ from scipy.linalg import block_diag
 
 
 class Pseudopotential:
-	"""
-	Contains important attributes from a VASP pseudopotential files. POTCAR
-	"settings" can be read from the pymatgen POTCAR object
+    """
+    Contains important attributes from a VASP pseudopotential files. POTCAR
+    "settings" can be read from the pymatgen POTCAR object
 
-	Note: for the following attributes, 'index' refers to an elist
-	quantum number epsilon and angular momentum quantum number l,
-	which define one set consisting of a projector function, all electron
-	partial waves, and pseudo partial waves.
+    Note: for the following attributes, 'index' refers to an elist
+    quantum number epsilon and angular momentum quantum number l,
+    which define one set consisting of a projector function, all electron
+    partial waves, and pseudo partial waves.
 
-	Attributes:
-		rmax (np.float64): Maximum radius of the projection operators
-		grid (np.array): radial grid on which partial waves are defined
-		aepotential (np.array): All electron potential defined radially on grid
-		aecorecharge (np.array): All electron core charge defined radially
-			on grid (i.e. charge due to core, and not valence, electrons)
-		kinetic (np.array): Core kinetic elist density, defined raidally on grid
-		pspotential (np.array): pseudopotential defined on grid
-		pscorecharge (np.array): pseudo core charge defined on grid
-		ls (list): l quantum number for each index
-		pswaves (list of np.array): pseudo partial waves for each index
-		aewaves (list of np.array): all electron partial waves for each index
-		projgrid (np.array): radial grid on which projector functions are defined
-		recipprojs (list of np.array): reciprocal space projection operators
-			for each index
-		realprojs (list of np.array): real space projection operators
-			for each index
-	"""
+    Attributes:
+        rmax (np.float64): Maximum radius of the projection operators
+        grid (np.array): radial grid on which partial waves are defined
+        aepotential (np.array): All electron potential defined radially on grid
+        aecorecharge (np.array): All electron core charge defined radially
+            on grid (i.e. charge due to core, and not valence, electrons)
+        kinetic (np.array): Core kinetic elist density, defined raidally on grid
+        pspotential (np.array): pseudopotential defined on grid
+        pscorecharge (np.array): pseudo core charge defined on grid
+        ls (list): l quantum number for each index
+        pswaves (list of np.array): pseudo partial waves for each index
+        aewaves (list of np.array): all electron partial waves for each index
+        projgrid (np.array): radial grid on which projector functions are defined
+        recipprojs (list of np.array): reciprocal space projection operators
+            for each index
+        realprojs (list of np.array): real space projection operators
+            for each index
+    """
 
-	def __init__(self, data):
-		"""
-		Initializer for Pseudopotential.
-		Should only be used by CoreRegion.
+    def __init__(self, data):
+        """
+        Initializer for Pseudopotential.
+        Should only be used by CoreRegion.
 
-		Arguments:
-			data (str): single-element pseudopotential
-				(POTCAR) as a string
-		"""
-		nonradial, radial = data.split("PAW radial sets", 1)
-		partial_waves = radial.split("pseudo wavefunction")
-		gridstr, partial_waves = partial_waves[0], partial_waves[1:]
-		self.pswaves = []
-		self.aewaves = []
-		self.recipprojs = []
-		self.realprojs = []
-		self.nonlocalprojs = []
-		self.ls = []
-		##################################################################################
-		auguccstr, gridstr = gridstr.split("grid", 1)
-		gridstr, aepotstr = gridstr.split("aepotential", 1)
-		# aepotstr, corechgstr = aepotstr.split("core charge-density", 1)
-		# try:
-		# 	corechgstr, kenstr = corechgstr.split("kinetic elist-density", 1)
-		# 	kenstr, pspotstr = kenstr.split("pspotential", 1)
-		# except:
-		# 	kenstr = "0 0"
-		# 	corechgstr, pspotstr = corechgstr.split("pspotential", 1)
-		# pspotstr, pscorechgstr = pspotstr.split("core charge-density (pseudized)", 1)
-		self.grid = self.make_nums(gridstr)
-		#self.aepotential = self.make_nums(aepotstr)
-		#self.aecorecharge = self.make_nums(corechgstr)
-		#self.kinetic = self.make_nums(kenstr)
-		#self.pspotential = self.make_nums(pspotstr)
-		#self.pscorecharge = self.make_nums(pscorechgstr)
-		
-		augstr, uccstr = auguccstr.split('uccopancies in atom', 1)
-		head, augstr = augstr.split('augmentation charges (non sperical)', 1)
-		augs = self.make_nums(augstr)
-		##################################################################################
-		for pwave in partial_waves:
-			lst = pwave.split("ae wavefunction", 1)
-			self.pswaves.append(self.make_nums(lst[0]))
-			self.aewaves.append(self.make_nums(lst[1]))
-		##################################################################################
-		projstrs = nonradial.split("Non local Part")
-		topstr, projstrs = projstrs[0], projstrs[1:]
-		# self.Gmax = float(topstr[-24:-4])
-		self.Gmax=float(topstr.split()[-2])
-		space=len(topstr.split(".")[-1])+4
-		topstr, atpschgstr = topstr[:-space].split("atomic pseudo charge-density", 1)
-		try:
-			topstr, corechgstr = topstr.split("core charge-density (partial)", 1)
-			settingstr, localstr = topstr.split("local part", 1)
-		except:
-			corechgstr = "0 0"
-			settingstr, localstr = topstr.split("local part", 1)
-		
-		# if "gradient corrections used for XC" in localstr:
-		# 	localstr, self.gradxc = localstr.split("gradient corrections used for XC", 1)
-		# 	self.gradxc = int(self.gradxc)
-		# else:
-		# 	self.gradxc = None
-		# self.localpart = self.make_nums(localstr)
-		# self.localnum = self.localpart[0]
-		# self.localpart = self.localpart[1:]
-		# self.coredensity = self.make_nums(corechgstr)
-		# self.atomicdensity = self.make_nums(atpschgstr)
+        Arguments:
+            data (str): single-element pseudopotential
+                (POTCAR) as a string
+        """
+        nonradial, radial = data.split("PAW radial sets", 1)
+        partial_waves = radial.split("pseudo wavefunction")
+        gridstr, partial_waves = partial_waves[0], partial_waves[1:]
+        self.pswaves = []
+        self.aewaves = []
+        self.recipprojs = []
+        self.realprojs = []
+        self.nonlocalprojs = []
+        self.ls = []
+        ##################################################################################
+        auguccstr, gridstr = gridstr.split("grid", 1)
+        gridstr, aepotstr = gridstr.split("aepotential", 1)
+        # aepotstr, corechgstr = aepotstr.split("core charge-density", 1)
+        # try:
+        #     corechgstr, kenstr = corechgstr.split("kinetic elist-density", 1)
+        #     kenstr, pspotstr = kenstr.split("pspotential", 1)
+        # except:
+        #     kenstr = "0 0"
+        #     corechgstr, pspotstr = corechgstr.split("pspotential", 1)
+        # pspotstr, pscorechgstr = pspotstr.split("core charge-density (pseudized)", 1)
+        self.grid = self.make_nums(gridstr)
+        #self.aepotential = self.make_nums(aepotstr)
+        #self.aecorecharge = self.make_nums(corechgstr)
+        #self.kinetic = self.make_nums(kenstr)
+        #self.pspotential = self.make_nums(pspotstr)
+        #self.pscorecharge = self.make_nums(pscorechgstr)
+        
+        augstr, uccstr = auguccstr.split('uccopancies in atom', 1)
+        head, augstr = augstr.split('augmentation charges (non sperical)', 1)
+        augs = self.make_nums(augstr)
+        ##################################################################################
+        for pwave in partial_waves:
+            lst = pwave.split("ae wavefunction", 1)
+            self.pswaves.append(self.make_nums(lst[0]))
+            self.aewaves.append(self.make_nums(lst[1]))
+        ##################################################################################
+        projstrs = nonradial.split("Non local Part")
+        topstr, projstrs = projstrs[0], projstrs[1:]
+        # self.Gmax = float(topstr[-24:-4])
+        self.Gmax=float(topstr.split()[-2])
+        space=len(topstr.split(".")[-1])+4
+        topstr, atpschgstr = topstr[:-space].split("atomic pseudo charge-density", 1)
+        try:
+            topstr, corechgstr = topstr.split("core charge-density (partial)", 1)
+            settingstr, localstr = topstr.split("local part", 1)
+        except:
+            corechgstr = "0 0"
+            settingstr, localstr = topstr.split("local part", 1)
+        
+        # if "gradient corrections used for XC" in localstr:
+        #     localstr, self.gradxc = localstr.split("gradient corrections used for XC", 1)
+        #     self.gradxc = int(self.gradxc)
+        # else:
+        #     self.gradxc = None
+        # self.localpart = self.make_nums(localstr)
+        # self.localnum = self.localpart[0]
+        # self.localpart = self.localpart[1:]
+        # self.coredensity = self.make_nums(corechgstr)
+        # self.atomicdensity = self.make_nums(atpschgstr)
 
-		for projstr in projstrs:
-			lst = projstr.split("Reciprocal Space Part")
-			nonlocalvals, projs = lst[0], lst[1:]
-			self.rmax = self.make_nums(nonlocalvals.split()[2])[0]
-			nonlocalvals = self.make_nums(nonlocalvals)
-			l = int(nonlocalvals[0])
-			count = int(nonlocalvals[1])
-			self.nonlocalprojs.append(nonlocalvals[2:])
-			for proj in projs:
-				recipproj, realproj = proj.split("Real Space Part")
-				self.recipprojs.append(self.make_nums(recipproj))
-				self.realprojs.append(self.make_nums(realproj))
-				self.ls.append(l)
-		self.augs = augs.reshape([len(self.ls),len(self.ls)])
-		settingstr, projgridstr = settingstr.split("STEP   =")
-		self.ndata = int(settingstr.split()[-1])
-		#projgridstr = projgridstr.split("END")[0]
-		self.projgrid = np.arange(len(self.realprojs[0])) * self.rmax / len(self.realprojs[0]) #uniform radial grid
-		self.step = (self.projgrid[0], self.projgrid[1])
+        for projstr in projstrs:
+            lst = projstr.split("Reciprocal Space Part")
+            nonlocalvals, projs = lst[0], lst[1:]
+            self.rmax = self.make_nums(nonlocalvals.split()[2])[0]
+            nonlocalvals = self.make_nums(nonlocalvals.replace('D', 'E'))
+            l = int(nonlocalvals[0])
+            count = int(nonlocalvals[1])
+            self.nonlocalprojs.append(nonlocalvals[2:])
+            for proj in projs:
+                recipproj, realproj = proj.split("Real Space Part")
+                self.recipprojs.append(self.make_nums(recipproj))
+                self.realprojs.append(self.make_nums(realproj))
+                self.ls.append(l)
+        self.augs = augs.reshape([len(self.ls),len(self.ls)])
+        settingstr, projgridstr = settingstr.split("STEP   =")
+        self.ndata = int(settingstr.split()[-1])
+        #projgridstr = projgridstr.split("END")[0]
+        self.projgrid = np.arange(len(self.realprojs[0])) * self.rmax / len(self.realprojs[0]) #uniform radial grid
+        self.step = (self.projgrid[0], self.projgrid[1])
 
-	def make_nums(self, numstring):
-		return np.fromstring(numstring, dtype = np.float64, sep = ' ')
+    def make_nums(self, numstring):
+        return np.fromstring(numstring, dtype = np.float64, sep = ' ')
 
 
 class POTCAR:
-	"""
-	List of Pseudopotential objects to describe the core region of a structure.
+    """
+    List of Pseudopotential objects to describe the core region of a structure.
 
-	Attributes:
-		pps (dict of Pseudopotential): keys are element symbols,
-			values are Pseudopotential objects
-	"""
-	def __init__(self, filename):
+    Attributes:
+        pps (dict of Pseudopotential): keys are element symbols,
+            values are Pseudopotential objects
+    """
+    def __init__(self, filename):
 
-		file = open(filename,'r')
-		text = file.read()
-		file.close()
-		potcar = [term for term in text.strip().split('End of Dataset') if term !='']
-		self.pps = {}
-		for potsingle in potcar:
-			element = potsingle[0:16].split()[1].split('_')[0]
-			self.pps[element] = Pseudopotential(potsingle)
+        file = open(filename,'r')
+        text = file.read()
+        file.close()
+        potcar = [term for term in text.strip().split('End of Dataset') if term !='']
+        self.pps = {}
+        for potsingle in potcar:
+            element = potsingle[0:20].split()[1].split('_')[0]
+            self.pps[element] = Pseudopotential(potsingle)
 
 class WAVECAR:
     def __init__(self, filename):
@@ -461,9 +461,9 @@ def main():
             if   k=="fwav"  : fwav=v
             elif k=="fpot"  : fpot=v
             elif k=="fpos"  : fpos=v
+            elif k=="fout"  : fout=v
             elif k == "NB": NBout = int(v)
             elif k == "IBstart": IBstart = int(v)
-            elif k == "norm": normalize = v
 
     print("reading {0}, {1}, {2}\n writing to {3}".format(fwav,fpot,fpos,fout))
 
@@ -509,12 +509,17 @@ def main():
         # SX = wav.wavelist[ik,0,bands,0:2*npw].conj()@np.kron(sx,Id)@wav.wavelist[ik,0,bands,0:2*npw].T+proj.conj()@np.kron(sx,paw.Tij)@proj.T
         # SY = wav.wavelist[ik,0,bands,0:2*npw].conj()@np.kron(sy,Id)@wav.wavelist[ik,0,bands,0:2*npw].T+proj.conj()@np.kron(sy,paw.Tij)@proj.T
         # SZ = wav.wavelist[ik,0,bands,0:2*npw].conj()@np.kron(sz,Id)@wav.wavelist[ik,0,bands,0:2*npw].T+proj.conj()@np.kron(sz,paw.Tij)@proj.T
-        SX = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sx,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
-             +proj.conj()@np.kron(sx,paw.Tij)@proj.T
-        SY = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sy,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
-             +proj.conj()@np.kron(sy,paw.Tij)@proj.T
-        SZ = wav.wavelist[ik,0,bands,0:2*npw].conj()*np.diag(np.kron(sz,Id))[np.newaxis,:]@wav.wavelist[ik,0,bands,0:2*npw].T\
-             +proj.conj()@np.kron(sz,paw.Tij)@proj.T
+        SIGMA = np.array(
+            [
+                [
+                    np.einsum("ik,kj->ij",
+                              wav.wavelist[ik,0,bands,i*npw:(i+1)*npw].conj(), wav.wavelist[ik,0,bands,j*npw:(j+1)*npw].T)
+                    for j in (0, 1)
+                ] for i in (0, 1)
+            ])
+        SX = SIGMA[0, 1] + SIGMA[1, 0]
+        SY = -1.j * (SIGMA[0, 1] - SIGMA[1, 0])
+        SZ = SIGMA[0, 0] - SIGMA[1, 1]
         A = np.array([s[n, m] for m in range(NBout) for n in range(m + 1) for s in (SX, SY, SZ)], dtype=np.complex128)
         SPN.write_record(A)
 
