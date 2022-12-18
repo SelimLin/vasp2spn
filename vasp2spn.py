@@ -29,12 +29,13 @@ from numpy.linalg import inv,norm
 import sys
 from scipy.io import FortranFile
 import datetime
+import re
 
 
 from scipy.interpolate import CubicSpline
 from scipy.special import sph_harm
 from scipy.linalg import block_diag
-
+from scipy.integrate import simpson
 
 class Pseudopotential:
     """
@@ -95,6 +96,7 @@ class Pseudopotential:
         #     corechgstr, pspotstr = corechgstr.split("pspotential", 1)
         # pspotstr, pscorechgstr = pspotstr.split("core charge-density (pseudized)", 1)
         self.grid = self.make_nums(gridstr)
+        self.r_h = np.log(self.grid[-1]/self.grid[0])/(self.grid.shape[0]-1)
         #self.aepotential = self.make_nums(aepotstr)
         #self.aecorecharge = self.make_nums(corechgstr)
         #self.kinetic = self.make_nums(kenstr)
@@ -107,8 +109,8 @@ class Pseudopotential:
         ##################################################################################
         for pwave in partial_waves:
             lst = pwave.split("ae wavefunction", 1)
-            self.pswaves.append(self.make_nums(lst[0]))
-            self.aewaves.append(self.make_nums(lst[1]))
+            self.pswaves.append(self.make_nums(lst[0])) # Psi(r,theta,phi)=R(r)Y_lm(theta,phi)=u(r)Y_lm(theta,phi)/r
+            self.aewaves.append(self.make_nums(lst[1])) # pswave and aewave are actually u(r)=R(r)r instead
         ##################################################################################
         projstrs = nonradial.split("Non local Part")
         topstr, projstrs = projstrs[0], projstrs[1:]
@@ -122,7 +124,8 @@ class Pseudopotential:
         except:
             corechgstr = "0 0"
             settingstr, localstr = topstr.split("local part", 1)
-        
+        self.rdep=float(re.search("RDEP\s+=\s+[0-9]+.[0-9]+",settingstr).group().split()[-1])*0.529177249
+        self.ridx=self.grid<self.rdep+5E-3
         # if "gradient corrections used for XC" in localstr:
         #     localstr, self.gradxc = localstr.split("gradient corrections used for XC", 1)
         #     self.gradxc = int(self.gradxc)
@@ -144,7 +147,13 @@ class Pseudopotential:
             self.nonlocalprojs.append(nonlocalvals[2:])
             for proj in projs:
                 recipproj, realproj = proj.split("Real Space Part")
-                self.recipprojs.append(self.make_nums(recipproj))
+                self.recipprojs.append(np.zeros(100+1))
+                self.recipprojs[-1][1:101]=self.make_nums(recipproj)
+                if np.mod(l,2)==0:
+                    self.recipprojs[-1][0]=self.recipprojs[-1][2]
+                else:
+                    self.recipprojs[-1][0]=-self.recipprojs[-1][2]
+                # self.recipprojs.append(self.make_nums(recipproj))
                 self.realprojs.append(self.make_nums(realproj))
                 self.ls.append(l)
         self.augs = augs.reshape([len(self.ls),len(self.ls)])
@@ -225,8 +234,6 @@ class WAVECAR:
                 ind = (((Ggrid+klist[ik])@B)**2).sum(axis=1)/c <ecut
                 if isp ==0:
                     Gindx.append(np.arange(Ggrid.shape[0])[ind])
-                if Gindx[-1].shape[0]*spinor!=nplane:
-                    print("number of plane wave mismatch at k=",klist[ik,:])
                 for ib in range(nband):
                     irec=2+isp*nk*(nband+1)+ik*(nband+1)+1+ib
                     wave.seek(nrecl*irec)
@@ -295,6 +302,7 @@ class WAVECAR:
 
 
 
+
 def decomment(str):
     return str.split("#")[0].split("!")[0]
 class POSCAR:
@@ -318,9 +326,10 @@ class POSCAR:
         for i in range(total):
             self.pos[i,:]=np.asarray(items[i+start].split()[0:3],dtype=float)
         
+        
 
 class PAWSetting():
-    def __init__(self,pos,pot):
+    def __init__(self,pos,pot,calcO=False):
         self.A=pos.A
         self.B=pos.B 
         self.vol=abs(np.linalg.det(self.A))
@@ -355,9 +364,20 @@ class PAWSetting():
         recipprojs={}
         for iat in pos.elements:
             pps = pot.pps[iat]
-            x = np.arange(100)/100*pps.Gmax
-            recipprojs[iat]=[CubicSpline(x,pps.recipprojs[i],extrapolate=False) for i in range(len(pps.recipprojs))]
+            x = np.arange(-1,100)/100*pps.Gmax
+            recipprojs[iat]=[CubicSpline(x,pps.recipprojs[i],bc_type='natural',extrapolate=False) for i in range(len(pps.recipprojs))]
         self.recipprojs=recipprojs
+
+        realprojs={}
+        for iat in pos.elements:
+            pps = pot.pps[iat]
+            x = pps.projgrid
+            realprojs[iat]=[]
+            for i in range(len(pps.realprojs)):
+                boundary= 0 if pps.ls[i]!=1 else (pps.realprojs[i][1]-pps.realprojs[i][0])/(x[1]-x[0])
+                realprojs[iat].append(CubicSpline(x,pps.realprojs[i],bc_type=((1, boundary), (2, 0.0)),extrapolate=False))
+        self.realprojs=realprojs
+
 
         iL=np.zeros(nchannel,dtype=complex)
         for i in range(len(atomlabel)):
@@ -375,6 +395,23 @@ class PAWSetting():
                         Qij[iat][lmidx[iat][i],lmidx[iat][j]]=pot.pps[iat].augs[i,j]*np.eye(2*l+1)
         self.Qij=Qij
         self.Tij=block_diag(*([Qij[iat] for iat in atomlabel]))
+
+        if calcO:   #Oij=<\phi_i|\phi_j> #tOij=<\tilde{\phi_i}|\tilde{\phi_j}>
+            Oij={}
+            tOij={}
+            for iat in pos.elements:
+                Oij[iat]=np.zeros([len(ls[iat]),len(ls[iat])])
+                tOij[iat]=np.zeros([len(ls[iat]),len(ls[iat])])
+                pps = pot.pps[iat]
+                for i in range(len(ls[iat])):
+                    for j in range(len(ls[iat])):
+                        if ls[iat][i]==ls[iat][j]:
+                            Oij[iat][i,j]=simpson(pps.aewaves[i][pps.ridx]*pps.aewaves[j][pps.ridx]*pps.r_h*pps.grid[pps.ridx])
+                            tOij[iat][i,j]=simpson(pps.pswaves[i][pps.ridx]*pps.pswaves[j][pps.ridx]*pps.r_h*pps.grid[pps.ridx])
+            self.Oij=Oij
+            self.tOij=tOij
+
+        
 
         
 
@@ -403,8 +440,10 @@ def calcproj(wav,paw,ik,isp,bands): #bands is a range object
                 YLM[l][m,:]= np.real(sph_harm(m,l,phi,theta))
             else:
                 data = sph_harm(m,l,phi,theta)
-                YLM[l][m,:]= sqrt2*((-1)**l)*np.real(data)
-                YLM[l][-m,:]= sqrt2*((-1)**l)*np.imag(data)
+#                 YLM[l][m,:]= sqrt2*((-1)**l)*np.real(data)
+#                 YLM[l][-m,:]= sqrt2*((-1)**l)*np.imag(data)
+                YLM[l][m,:]= sqrt2*((-1)**m)*np.real(data)
+                YLM[l][-m,:]= sqrt2*((-1)**m)*np.imag(data)
 
     # plane wave expansion of projector  <P_nlm|k+G> = i^L*4PI*<P_ln(r)|j_l(k+G r)> Y_l^m(k+G)
     # 4PI*<P_ln(r)|j_l(k+G r)> has been tabulated in reciprojs, we only need interpolation
@@ -430,10 +469,7 @@ def calcproj(wav,paw,ik,isp,bands): #bands is a range object
 
     return proj
     
-
-
-
-
+   
 def hlp():
     from termcolor import cprint
     cprint("vasp2spn  (utility)", 'green', attrs=['bold'])
