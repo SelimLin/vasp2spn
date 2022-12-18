@@ -2,7 +2,11 @@
 
 vasp2spn.py is a modified version of vaspspn.py provided in [wannierberri](https://github.com/wannier-berri/wannier-berri) written by Stepan Tsirkin, which aims to generate wannier90.spn from VASP output WAVECAR. Evaluation of spin matrix in vaspspn.py is approximate and based on normalized pseudo-wavefunction contained in WAVECAR which ignores the augmentation part of the all-electron wavefunction in PAW frameworks. My vasp2spn.py instead recovers the augementation part and in principle provides the exact results using all-electron wavefunctions. As a price, vasp2spn.py also requires pseudopotential information contained in POTCAR and atomic information contained in POSCAR.
 
-A test script is also provided: orthotest.py calculates overlap between selected wavefunctions and print the results that should demonstrate the orthonormality between Kohn-Shan orbitals. It is a useful test to check whether the augmentation parts of all-electron wavefunctions are correctly recovered.
+Two test scripts are also provided: 
+
+orthotest.py calculates overlap between selected wavefunctions and print the results that should demonstrate the orthonormality between Kohn-Sham orbitals. It is a useful test to check whether the augmentation parts of all-electron wavefunctions are correctly recovered.
+
+procartest.py calculate atomic contribution for each Kohn-Sham orbitals and compare the results with VASP output PROCAR. This script requires a PROCAR calculated with LORBIT=12 and the orbital resolved phase informations are also calculated and compared.   
 
 
 ## Usage
