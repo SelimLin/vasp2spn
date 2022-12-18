@@ -519,7 +519,49 @@ def calcproj(wav,paw,ik,isp,bands): #bands is a range object
                 =(wav.wavelist[ik,isp,bands,j*npw:(j+1)*npw]*expiGR[np.newaxis,:])@Gproj[iat].T*paw.iL[paw.atomidx[i]][np.newaxis,:]
 
     return proj
-  
+
+def Projector(paw,atoms,orbital):
+    OP=np.zeros([2*paw.nchannel,2*paw.nchannel],dtype=complex)
+    for i in atoms:
+        iat = paw.atomlabel[i]
+        for j in range(len(paw.ls[iat])):
+            for k in range(len(paw.ls[iat])):
+                if paw.ls[iat][j]==paw.ls[iat][k]:
+                    l=paw.ls[iat][j]
+                    for isp1 in range(2):
+                        for isp2 in range(2):
+                            OP[isp1*paw.nchannel:(isp1+1)*paw.nchannel,isp2*paw.nchannel:(isp2+1)*paw.nchannel]\
+                              [paw.atomidx[i],paw.atomidx[i]][paw.lmidx[iat][j],paw.lmidx[iat][k]]\
+                                =paw.Oij[iat][j,k]*orbital[isp1][l][:,np.newaxis].conj()@orbital[isp2][l][np.newaxis,:]
+    return OP
+
+up = {}
+for l in range(4):
+    for m in range(-l,l+1):
+        orb = [[np.zeros(1),np.zeros(3),np.zeros(5),np.zeros(7)],
+               [np.zeros(1),np.zeros(3),np.zeros(5),np.zeros(7)]]
+        orb[0][l][m]=1
+        up[(l,m)]=orb
+dn = {}
+for l in range(4):
+    for m in range(-l,l+1):
+        orb = [[np.zeros(1),np.zeros(3),np.zeros(5),np.zeros(7)],
+               [np.zeros(1),np.zeros(3),np.zeros(5),np.zeros(7)]]
+        orb[1][l][m]=1
+        dn[(l,m)]=orb
+        
+def diag_and_sort(M):
+    e,v=np.linalg.eigh(M)
+    e=np.flip(e)
+    v=np.flip(v,axis=1)
+    v = np.sqrt(e)*v
+    for i in range(len(e)-1):
+        idx = np.flip(np.argsort(abs(v[i,i:])))
+        v[:,i:]=v[:,i:][:,idx]
+        if v[i,i]<0:
+            v[:,i]=-v[:,i]
+    return v
+        
   
 pot=POTCAR("POTCAR") 
 pos=POSCAR('POSCAR')
