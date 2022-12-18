@@ -6,7 +6,7 @@ Two test scripts are also provided:
 
 orthotest.py calculates overlap between selected wavefunctions and print the results that should demonstrate the orthonormality between Kohn-Sham orbitals. It is a useful test to check whether the augmentation parts of all-electron wavefunctions are correctly recovered.
 
-procartest.py calculate atomic contribution for each Kohn-Sham orbitals and compare the results with VASP output PROCAR. This script requires a PROCAR calculated with LORBIT=12 and the orbital resolved phase informations are also calculated and compared.   
+procartest.py calculates atomic contributions for each Kohn-Sham orbital and compare the results with VASP output PROCAR. This script requires a PROCAR calculated with LORBIT=12 and the orbital resolved phase informations are also calculated and compared.   
 
 
 ## Usage
