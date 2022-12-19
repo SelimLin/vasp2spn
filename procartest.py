@@ -532,7 +532,7 @@ def Projector(paw,atoms,orbital):
                         for isp2 in range(2):
                             OP[isp1*paw.nchannel:(isp1+1)*paw.nchannel,isp2*paw.nchannel:(isp2+1)*paw.nchannel]\
                               [paw.atomidx[i],paw.atomidx[i]][paw.lmidx[iat][j],paw.lmidx[iat][k]]\
-                                =paw.Oij[iat][j,k]*orbital[isp1][l][:,np.newaxis].conj()@orbital[isp2][l][np.newaxis,:]
+                                =paw.Oij[iat][j,k]*orbital[isp1][l][:,np.newaxis]@orbital[isp2][l][np.newaxis,:].conj()
     return OP
 
 up = {}
